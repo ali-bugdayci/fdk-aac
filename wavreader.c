@@ -72,7 +72,7 @@ void* wav_read_open(const char *filename) {
 		return NULL;
 	}
 
-	while (1) {
+	while (!data_pos) {
 		uint32_t tag, tag2, length;
 		tag = read_tag(wr);
 		if (feof(wr->wav))
@@ -89,7 +89,7 @@ void* wav_read_open(const char *filename) {
 			continue;
 		}
 		// RIFF chunk found, iterate through it
-		while (length >= 8) {
+		while (length >= 8 && !data_pos) {
 			uint32_t subtag, sublength;
 			subtag = read_tag(wr);
 			if (feof(wr->wav))
@@ -113,18 +113,20 @@ void* wav_read_open(const char *filename) {
 			} else if (subtag == TAG('d', 'a', 't', 'a')) {
 				data_pos = ftell(wr->wav);
 				wr->data_length = sublength;
+				break;
 				fseek(wr->wav, sublength, SEEK_CUR);
 			} else {
 				fseek(wr->wav, sublength, SEEK_CUR);
 			}
 			length -= sublength;
 		}
+		if (data_pos)
+			break;
 		if (length > 0) {
 			// Bad chunk?
 			fseek(wr->wav, length, SEEK_CUR);
 		}
 	}
-	fseek(wr->wav, data_pos, SEEK_SET);
 	return wr;
 }
 
